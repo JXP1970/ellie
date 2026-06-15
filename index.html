@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ellie – Sprachpartnerin</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel2: #334155;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --ellie: #312e81;
+    --user: #1e3a5f;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+  header {
+    background: var(--panel);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--panel2);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header .logo {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  header .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .iconbtn {
+    background: var(--panel2); border: none; color: var(--text);
+    border-radius: 10px; padding: 8px 12px; font-size: 14px; cursor: pointer;
+  }
+
+  .screen { flex: 1; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* Setup */
+  #setup { padding: 18px; gap: 16px; overflow-y: auto; }
+  .card { background: var(--panel); border-radius: 16px; padding: 16px; }
+  .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block; }
+  input[type=password], input[type=text], select, textarea {
+    width: 100%; background: var(--panel2); border: 1px solid #475569;
+    color: var(--text); border-radius: 12px; padding: 13px 14px; font-size: 16px;
+    outline: none; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent2); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  .hint a { color: var(--accent2); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--panel2); border: 1px solid #475569; color: var(--text);
+    border-radius: 999px; padding: 9px 14px; font-size: 14px; cursor: pointer;
+  }
+  .chip.sel { background: var(--accent); border-color: var(--accent); }
+  .bigbtn {
+    width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white; border: none; border-radius: 14px; padding: 16px;
+    font-size: 17px; font-weight: 600; cursor: pointer; margin-top: 4px;
+  }
+  .bigbtn:disabled { opacity: .5; }
+
+  /* Chat */
+  #chat { padding: 14px; gap: 12px; overflow-y: auto; flex: 1; }
+  .msg { max-width: 85%; padding: 12px 14px; border-radius: 16px; font-size: 16px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.ellie { background: var(--ellie); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.user { background: var(--user); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg .listen {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+    background: rgba(255,255,255,.12); border: none; color: var(--text);
+    border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+  .msg .listen:active { background: rgba(255,255,255,.25); }
+  .msg .corr {
+    background: rgba(251,191,36,.15); border-left: 3px solid #fbbf24;
+    border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
+    font-size: 14px; color: #fde68a; line-height: 1.5;
+  }
+  .msg .corr div { margin: 2px 0; }
+  .typing { align-self: flex-start; color: var(--muted); font-size: 14px; padding: 8px 14px; }
+  .composer {
+    display: flex; gap: 8px; padding: 12px; background: var(--panel);
+    border-top: 1px solid var(--panel2); align-items: flex-end;
+  }
+  .composer textarea {
+    resize: none; max-height: 120px; border-radius: 18px; padding: 11px 14px;
+  }
+  .sendbtn {
+    background: var(--accent); border: none; color: white; border-radius: 50%;
+    width: 46px; height: 46px; font-size: 20px; flex-shrink: 0; cursor: pointer;
+  }
+  .sendbtn:disabled { opacity: .5; }
+  .micbtn {
+    background: var(--panel2); border: none; color: var(--text); border-radius: 50%;
+    width: 46px; height: 46px; font-size: 20px; flex-shrink: 0; cursor: pointer;
+  }
+  .micbtn.rec { background: #dc2626; color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
+  .err { background: #7f1d1d; color: #fecaca; padding: 10px 14px; border-radius: 12px; font-size: 14px; align-self: stretch; }
+
+  /* Freisprech-Modus */
+  #hfBanner {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    background: var(--panel); border-top: 1px solid var(--panel2);
+  }
+  .hfstatus {
+    flex: 1; font-size: 20px; font-weight: 700; text-align: center;
+    padding: 14px; border-radius: 14px; background: var(--panel2);
+    transition: background .2s;
+  }
+  .hfstatus.listen { background: #166534; color: #dcfce7; }   /* du bist dran */
+  .hfstatus.speak  { background: #1e40af; color: #dbeafe; }   /* ellie spricht */
+  .hfstatus.think  { background: #854d0e; color: #fef9c3; }   /* ellie denkt */
+  .hfstop {
+    background: #dc2626; color: #fff; border: none; border-radius: 14px;
+    padding: 18px 22px; font-size: 18px; font-weight: 700; cursor: pointer;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🦉</div>
+  <div style="flex:1">
+    <h1>Ellie</h1>
+    <div class="sub" id="subtitle">Deine Sprachpartnerin</div>
+  </div>
+  <button class="iconbtn" id="hfBtn" style="display:none">🚗</button>
+  <button class="iconbtn" id="backBtn" style="display:none">↺ Neu</button>
+</header>
+
+<!-- SETUP -->
+<div class="screen active" id="setup">
+  <div class="card">
+    <label class="label">Anthropic API-Schlüssel (wird nur lokal gespeichert)</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+    <div class="hint">
+      Bekommst du unter <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com/settings/keys</a>.
+      Bleibt nur auf diesem Gerät. Pro Gespräch entstehen sehr geringe Kosten (Cent-Bereich).
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="label">Welche Sprache möchtest du üben?</label>
+    <div class="chips" id="langChips"></div>
+  </div>
+
+  <div class="card">
+    <label class="label">Stimme</label>
+    <select id="voiceSelect"></select>
+    <div class="row" style="margin-top:10px; align-items:center">
+      <button class="chip" id="testVoice" style="flex:0 0 auto">🔊 Probe</button>
+      <div style="flex:1">
+        <label class="label" style="margin:0">Tempo</label>
+        <input type="range" id="rateRange" min="0.6" max="1.2" step="0.05" value="0.95" style="width:100%">
+      </div>
+    </div>
+    <div class="hint">Wähle die natürlichste Stimme. Tipp: Auf Android klingen die <b>„Google"</b>-Stimmen meist am besten.</div>
+  </div>
+
+  <div class="card">
+    <label class="label">Niveau</label>
+    <div class="chips" id="levelChips"></div>
+  </div>
+
+  <div class="card">
+    <label class="label">Fehler korrigieren</label>
+    <div class="chips" id="correctChips"></div>
+    <div class="hint">Korrekturen erscheinen als ✏️-Hinweis auf Deutsch. Beim Vorlesen wird die Korrektur auf Deutsch gesprochen, danach Ellies Antwort in der Übungssprache.</div>
+  </div>
+
+  <div class="card">
+    <label class="label">Automatisch vorlesen</label>
+    <div class="chips" id="autoChips"></div>
+    <div class="hint">Wenn an, spricht Ellie jede Antwort (inkl. Korrektur) sofort von selbst.</div>
+  </div>
+
+  <div class="card">
+    <label class="label">Erst hören, dann lesen</label>
+    <div class="chips" id="listenFirstChips"></div>
+    <div class="hint">Wenn an, spricht Ellie zuerst – der Text erscheint erst danach (oder per „👁 Text zeigen"). Gut fürs Hörverstehen.</div>
+  </div>
+
+  <div class="card" style="border:1px solid var(--accent)">
+    <label class="label">🚗 Freisprech-Modus (Autofahrt)</label>
+    <div class="chips" id="driveChips"></div>
+    <div class="hint">Komplett ohne Hände: Ellie spricht, danach hört das Mikrofon automatisch zu, sendet von selbst und Ellie antwortet — endlos im Wechsel. Zum Beenden den großen Stopp-Knopf antippen.</div>
+  </div>
+
+  <div class="card">
+    <label class="label">Thema</label>
+    <input type="text" id="topic" placeholder="z. B. Im Restaurant, Urlaub, Smalltalk …">
+    <div class="chips" id="topicChips" style="margin-top:10px"></div>
+  </div>
+
+  <button class="bigbtn" id="startBtn">Los geht's →</button>
+  <div style="height:10px"></div>
+</div>
+
+<!-- CHAT -->
+<div class="screen" id="chatScreen">
+  <div id="chat"></div>
+
+  <!-- Freisprech-Banner -->
+  <div id="hfBanner" style="display:none">
+    <div id="hfStatus" class="hfstatus">🚗 Freisprech-Modus</div>
+    <button id="hfStop" class="hfstop">■ Stopp</button>
+  </div>
+
+  <div class="composer">
+    <button class="micbtn" id="micBtn" title="Sprechen">🎤</button>
+    <textarea id="input" rows="1" placeholder="Schreiben oder 🎤 antippen …"></textarea>
+    <button class="sendbtn" id="sendBtn">➤</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---------- Konfiguration ----------
+var MODEL = "claude-haiku-4-5-20251001";
+var LANGS = [
+  { name: "Englisch",    tts: "en-US" },
+  { name: "Französisch", tts: "fr-FR" },
+  { name: "Spanisch",    tts: "es-ES" },
+  { name: "Italienisch", tts: "it-IT" },
+  { name: "Deutsch",     tts: "de-DE" }
+];
+var LEVELS = ["A1 Anfänger", "A2", "B1", "B2", "C1 Fortgeschritten"];
+var TOPICS = ["Smalltalk", "Im Restaurant", "Urlaub & Reisen", "Einkaufen", "Beruf", "Hobbys"];
+var CORRECTS = [
+  { id: "sanft",   label: "Sanft" },
+  { id: "genau",   label: "Genau" },
+  { id: "aus",     label: "Aus" }
+];
+var AUTO = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
+var DRIVE = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
+var LISTENFIRST = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
+
+// ---------- Zustand ----------
+var state = {
+  lang: LANGS[0],
+  level: LEVELS[0],
+  history: [],   // [{role, content}]
+  voiceURI: "",  // gewählte Stimme (pro Sprache gemerkt)
+  rate: 0.95,
+  correct: "sanft",
+  autoplay: false,
+  listenFirst: false, // erst sprechen, Text danach
+  drive: false,      // Freisprech als Voreinstellung gewählt
+  handsfree: false   // Freisprech-Schleife läuft gerade
+};
+
+// ---------- Hilfsfunktionen ----------
+function $(id){ return document.getElementById(id); }
+function esc(s){ var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+function loadKey(){ try { return localStorage.getItem("ellie_api_key") || ""; } catch(e){ return ""; } }
+function saveKey(k){ try { localStorage.setItem("ellie_api_key", k); } catch(e){} }
+
+// ---------- Setup-UI aufbauen ----------
+function buildChips(container, items, getLabel, isSel, onPick){
+  container.innerHTML = "";
+  items.forEach(function(it){
+    var b = document.createElement("button");
+    b.className = "chip" + (isSel(it) ? " sel" : "");
+    b.textContent = getLabel(it);
+    b.onclick = function(){ onPick(it); };
+    container.appendChild(b);
+  });
+}
+
+function renderSetup(){
+  buildChips($("langChips"), LANGS, function(l){return l.name;},
+    function(l){return l===state.lang;},
+    function(l){ state.lang=l; loadVoicePref(); renderSetup(); });
+  buildChips($("levelChips"), LEVELS, function(l){return l;},
+    function(l){return l===state.level;},
+    function(l){ state.level=l; renderSetup(); });
+  buildChips($("correctChips"), CORRECTS, function(c){return c.label;},
+    function(c){return c.id===state.correct;},
+    function(c){ state.correct=c.id; renderSetup(); });
+  buildChips($("autoChips"), AUTO, function(a){return a.label;},
+    function(a){return a.id===state.autoplay;},
+    function(a){ state.autoplay=a.id; renderSetup(); });
+  buildChips($("listenFirstChips"), LISTENFIRST, function(a){return a.label;},
+    function(a){return a.id===state.listenFirst;},
+    function(a){ state.listenFirst=a.id; renderSetup(); });
+  buildChips($("driveChips"), DRIVE, function(a){return a.label;},
+    function(a){return a.id===state.drive;},
+    function(a){ state.drive=a.id; renderSetup(); });
+  buildChips($("topicChips"), TOPICS, function(t){return t;},
+    function(){return false;},
+    function(t){ $("topic").value = t; });
+  refreshVoiceList();
+}
+
+// ---------- Sprachausgabe ("Hören") ----------
+function primeVoices(){
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = function(){ refreshVoiceList(); };
+}
+
+// Qualitäts-Bewertung einer Stimme (Google/Natural/Neural zuerst)
+function scoreVoice(v, langCode){
+  var n = (v.name + " " + (v.voiceURI||"")).toLowerCase();
+  var s = 0;
+  if (n.indexOf("google") >= 0) s += 3;
+  if (n.indexOf("natural") >= 0 || n.indexOf("neural") >= 0) s += 3;
+  if (n.indexOf("online") >= 0) s += 1;
+  if (n.indexOf("enhanced") >= 0 || n.indexOf("premium") >= 0) s += 2;
+  if (langCode && v.lang.toLowerCase() === langCode.toLowerCase()) s += 1;
+  return s;
+}
+
+// Stimmen für eine Sprache (langCode), "natürliche" zuerst
+function voicesFor(langCode){
+  if (!("speechSynthesis" in window)) return [];
+  var prefix = langCode.split("-")[0].toLowerCase();
+  var list = window.speechSynthesis.getVoices().filter(function(v){
+    return v.lang && v.lang.toLowerCase().indexOf(prefix) === 0;
+  });
+  list.sort(function(a,b){ return scoreVoice(b, langCode) - scoreVoice(a, langCode); });
+  return list;
+}
+function voicesForLang(){ return voicesFor(state.lang.tts); }
+
+function refreshVoiceList(){
+  var sel = $("voiceSelect");
+  if (!sel) return;
+  var list = voicesForLang();
+  sel.innerHTML = "";
+  if (!list.length){
+    var o = document.createElement("option");
+    o.value = ""; o.textContent = "Automatisch (Standardstimme)";
+    sel.appendChild(o);
+    return;
+  }
+  list.forEach(function(v){
+    var o = document.createElement("option");
+    o.value = v.voiceURI;
+    o.textContent = v.name + " (" + v.lang + ")";
+    sel.appendChild(o);
+  });
+  // gemerkte oder erste (= beste) Stimme auswählen
+  if (state.voiceURI && list.some(function(v){ return v.voiceURI === state.voiceURI; })){
+    sel.value = state.voiceURI;
+  } else {
+    state.voiceURI = list[0].voiceURI;
+    sel.value = state.voiceURI;
+  }
+}
+
+function loadVoicePref(){
+  try { state.voiceURI = localStorage.getItem("ellie_voice_" + state.lang.name) || ""; }
+  catch(e){ state.voiceURI = ""; }
+}
+function saveVoicePref(){
+  try { localStorage.setItem("ellie_voice_" + state.lang.name, state.voiceURI); } catch(e){}
+}
+
+function pickVoiceFor(langCode, preferredURI){
+  var voices = window.speechSynthesis.getVoices();
+  if (preferredURI){
+    var chosen = voices.filter(function(v){ return v.voiceURI === preferredURI; });
+    if (chosen.length) return chosen[0];
+  }
+  var list = voicesFor(langCode);
+  return list.length ? list[0] : null;
+}
+
+// spricht mehrere Teile nacheinander: [{text, lang, preferredURI}], onDone am Ende
+function speakParts(parts, btn, onDone){
+  if (!("speechSynthesis" in window)) {
+    alert("Dein Browser unterstützt keine Sprachausgabe.");
+    if (onDone) onDone();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  parts = parts.filter(function(p){ return p.text && p.text.trim(); });
+  if (!parts.length) { if (onDone) onDone(); return; }
+
+  var orig = btn ? btn.innerHTML : null;
+  if (btn) btn.innerHTML = "⏸ Läuft …";
+  var remaining = parts.length;
+  function done(){
+    remaining--;
+    if (remaining <= 0){
+      if (btn) btn.innerHTML = orig;
+      if (onDone) onDone();
+    }
+  }
+
+  parts.forEach(function(p){
+    var u = new SpeechSynthesisUtterance(p.text);
+    u.lang = p.lang;
+    var v = pickVoiceFor(p.lang, p.preferredURI);
+    if (v) u.voice = v;
+    u.rate = state.rate;
+    u.pitch = 1.0;
+    u.onend = done;
+    u.onerror = done;
+    window.speechSynthesis.speak(u);
+  });
+}
+
+// einfacher Einzel-Vorleser (z. B. Probe-Knopf), nur Übungssprache
+function speak(text, btn){
+  speakParts([{ text: text, lang: state.lang.tts, preferredURI: state.voiceURI }], btn);
+}
+
+// macht aus ✏️-Korrekturzeilen vorlesbaren deutschen Text
+function correctionsToSpeech(corrections){
+  if (!corrections || !corrections.length) return "";
+  var txt = corrections.map(function(c){
+    return c.replace(/→/g, ", richtig: ");
+  }).join(". ");
+  return "Korrektur: " + txt;
+}
+
+// ---------- Chat-UI ----------
+// trennt ✏️-Korrekturzeilen vom Gesprächstext
+function splitCorrection(text){
+  var lines = text.split("\n");
+  var corr = [], rest = [];
+  lines.forEach(function(ln){
+    if (ln.trim().indexOf("✏️") === 0) corr.push(ln.trim().replace(/^✏️\s*/, ""));
+    else rest.push(ln);
+  });
+  return { corrections: corr, speech: rest.join("\n").trim() };
+}
+
+function addMsg(role, text){
+  var div = document.createElement("div");
+  div.className = "msg " + role;
+
+  if (role === "ellie"){
+    var parts = splitCorrection(text);
+    var speech = parts.speech || text;
+
+    // sichtbarer Inhalt (Korrektur + Text) in einem Container
+    var content = document.createElement("div");
+    if (parts.corrections.length){
+      var box = document.createElement("div");
+      box.className = "corr";
+      parts.corrections.forEach(function(c){
+        var line = document.createElement("div");
+        line.textContent = "✏️ " + c;
+        box.appendChild(line);
+      });
+      content.appendChild(box);
+    }
+    content.appendChild(document.createTextNode(speech));
+    div.appendChild(content);
+
+    // "Erst hören, dann lesen": Text zunächst verbergen
+    var revealed = true;
+    var revealBtn = null;
+    if (state.listenFirst){
+      content.style.display = "none";
+      revealed = false;
+      revealBtn = document.createElement("button");
+      revealBtn.className = "listen";
+      revealBtn.innerHTML = "👁 Text zeigen";
+      revealBtn.onclick = function(){ reveal(); };
+    }
+    function reveal(){
+      if (revealed) return;
+      revealed = true;
+      content.style.display = "";
+      if (revealBtn) revealBtn.style.display = "none";
+      $("chat").scrollTop = $("chat").scrollHeight;
+    }
+
+    var b = document.createElement("button");
+    b.className = "listen";
+    b.innerHTML = "🔊 Hören";
+    var play = function(btn, onDone){
+      var seq = [];
+      var corrSpeech = correctionsToSpeech(parts.corrections);
+      if (corrSpeech) seq.push({ text: corrSpeech, lang: "de-DE" });
+      seq.push({ text: speech, lang: state.lang.tts, preferredURI: state.voiceURI });
+      speakParts(seq, btn, function(){ reveal(); if (onDone) onDone(); });
+    };
+    b.onclick = function(){ play(b); };
+
+    div.appendChild(document.createElement("br"));
+    if (revealBtn) div.appendChild(revealBtn);
+    div.appendChild(b);
+
+    // im Freisprech-Modus steuert die Schleife das Abspielen selbst
+    if (state.autoplay && !state.handsfree) setTimeout(function(){ play(b); }, 250);
+
+    return play;
+  } else {
+    div.appendChild(document.createTextNode(text));
+  }
+
+  $("chat").appendChild(div);
+  $("chat").scrollTop = $("chat").scrollHeight;
+}
+function showTyping(){
+  var d = document.createElement("div");
+  d.className = "typing"; d.id = "typing"; d.textContent = "Ellie schreibt …";
+  $("chat").appendChild(d);
+  $("chat").scrollTop = $("chat").scrollHeight;
+}
+function hideTyping(){ var t=$("typing"); if(t) t.remove(); }
+function showError(msg){
+  var d = document.createElement("div");
+  d.className = "err"; d.textContent = msg;
+  $("chat").appendChild(d);
+  $("chat").scrollTop = $("chat").scrollHeight;
+}
+
+// ---------- Anthropic API ----------
+function systemPrompt(){
+  var p = "Du bist Ellie, eine warmherzige, geduldige Sprachpartnerin. " +
+    "Der Nutzer (Muttersprache Deutsch) übt die Sprache: " + state.lang.name + ". " +
+    "Sein Niveau: " + state.level + ". " +
+    "Sprich fast ausschließlich in " + state.lang.name + ", in kurzen, natürlichen Sätzen, " +
+    "die zum Niveau passen. Halte deine Antworten kurz (2–4 Sätze) und stelle meist eine " +
+    "Rückfrage, damit das Gespräch weitergeht. Sei ermutigend.\n\n";
+
+  if (state.correct === "aus"){
+    p += "KORREKTUR: Korrigiere keine Fehler. Führe einfach das Gespräch.\n";
+  } else {
+    var grad = (state.correct === "genau")
+      ? "Korrigiere ALLE Fehler (Grammatik, Wortwahl, Satzbau, Rechtschreibung) und erkläre kurz, warum."
+      : "Korrigiere nur die wichtigsten Fehler (Grammatik, Wortwahl), die das Verständnis stören. Übergehe Kleinigkeiten.";
+    p += "KORREKTUR: " + grad + "\n" +
+      "WENN der Nutzer einen Fehler gemacht hat, beginne deine Antwort mit GENAU EINER Zeile in diesem Format:\n" +
+      "✏️ <falsch> → <richtig> (kurze Erklärung auf Deutsch)\n" +
+      "Bei mehreren Fehlern: mehrere solche Zeilen, jede mit ✏️ am Anfang.\n" +
+      "Danach eine LEERZEILE und dann deine normale Gesprächsantwort in " + state.lang.name + ".\n" +
+      "WENN alles korrekt war, KEINE ✏️-Zeile – dann nur die Gesprächsantwort.\n";
+  }
+  p += "\nWichtig: Die ✏️-Korrekturzeilen sind das EINZIGE Deutsch in deiner Antwort. " +
+    "Der Gesprächsteil ist immer komplett in " + state.lang.name + ". " +
+    "Verwende sonst keine Emojis und keine Sternchen-Formatierung.";
+  return p;
+}
+
+function callClaude(userText){
+  var key = $("apiKey").value.trim();
+  state.history.push({ role: "user", content: userText });
+
+  return fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 400,
+      system: systemPrompt(),
+      messages: state.history
+    })
+  }).then(function(res){
+    return res.json().then(function(data){
+      if (!res.ok){
+        var m = (data && data.error && data.error.message) ? data.error.message : ("HTTP " + res.status);
+        throw new Error(m);
+      }
+      return data;
+    });
+  }).then(function(data){
+    var reply = "";
+    if (data.content && data.content.length){
+      reply = data.content.map(function(c){ return c.text || ""; }).join("").trim();
+    }
+    if (!reply) reply = "(keine Antwort)";
+    state.history.push({ role: "assistant", content: reply });
+    return reply;
+  });
+}
+
+// ---------- Ablauf ----------
+function startConversation(){
+  var key = $("apiKey").value.trim();
+  if (!key){ alert("Bitte zuerst deinen API-Schlüssel eintragen."); return; }
+  saveKey(key);
+
+  var topic = $("topic").value.trim() || "Smalltalk";
+  state.history = [];
+  $("chat").innerHTML = "";
+  $("subtitle").textContent = state.lang.name + " · " + state.level + " · " + topic;
+
+  $("setup").classList.remove("active");
+  $("chatScreen").classList.add("active");
+  $("backBtn").style.display = "";
+  $("hfBtn").style.display = (recognition ? "" : "none");
+
+  // Freisprech-Modus vorgewählt? Banner an, Schleife wird nach der Eröffnung gestartet
+  if (state.drive && recognition){
+    state.handsfree = true;
+    $("hfBanner").style.display = "flex";
+    $("hfBtn").textContent = "🚗 An";
+    setHfStatus("think", "💭 Ellie denkt nach …");
+  }
+
+  // Ellie eröffnet das Gespräch
+  var opener = "Beginne das Gespräch zum Thema \"" + topic + "\". " +
+               "Begrüße mich kurz und stelle eine erste, einfache Frage.";
+  showTyping();
+  setBusy(true);
+  callClaude(opener).then(function(reply){
+    hideTyping();
+    var play = addMsg("ellie", reply);
+    setBusy(false);
+    if (state.handsfree){
+      setHfStatus("speak", "🔊 Ellie spricht …");
+      play(null, function(){ if (state.handsfree) setTimeout(hfListen, 300); });
+    }
+  }).catch(function(e){
+    hideTyping(); showError("Fehler: " + e.message); setBusy(false);
+  });
+}
+
+function setBusy(b){
+  $("sendBtn").disabled = b;
+  $("input").disabled = b;
+}
+
+function send(){
+  var text = $("input").value.trim();
+  if (!text) return;
+  addMsg("user", text);
+  $("input").value = "";
+  autosize();
+  showTyping();
+  setBusy(true);
+  callClaude(text).then(function(reply){
+    hideTyping(); addMsg("ellie", reply); setBusy(false); $("input").focus();
+  }).catch(function(e){
+    hideTyping(); showError("Fehler: " + e.message); setBusy(false);
+  });
+}
+
+function autosize(){
+  var t = $("input");
+  t.style.height = "auto";
+  t.style.height = Math.min(t.scrollHeight, 120) + "px";
+}
+
+// ---------- Mikrofon (Spracherkennung) ----------
+var recognition = null;
+var recording = false;
+var micMode = null;       // "manual" | "hf"
+var hfTranscript = "";
+
+function initMic(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){
+    $("micBtn").style.display = "none";   // Browser kann es nicht
+    return;
+  }
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onresult = function(e){
+    var finalTxt = "", interim = "";
+    for (var i = 0; i < e.results.length; i++){
+      var r = e.results[i];
+      if (r.isFinal) finalTxt += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+    if (micMode === "hf"){
+      if (finalTxt) hfTranscript += finalTxt;
+      var shown = (hfTranscript + " " + interim).trim();
+      if (shown) setHfStatus("listen", "🎤 " + shown);
+    } else {
+      if (finalTxt){
+        var cur = $("input").value.trim();
+        $("input").value = (cur ? cur + " " : "") + finalTxt;
+        autosize();
+      }
+    }
+  };
+
+  recognition.onerror = function(e){
+    if (e.error === "not-allowed" || e.error === "service-not-allowed"){
+      stopHandsfree();
+      stopRec();
+      alert("Mikrofon-Zugriff wurde blockiert. Bitte in den Browser-Einstellungen für diese Seite erlauben.");
+    }
+    // andere Fehler (z. B. no-speech) regelt onend
+  };
+
+  recognition.onend = function(){
+    recording = false;
+    $("micBtn").classList.remove("rec");
+    var wasHf = (micMode === "hf");
+    micMode = null;
+    if (wasHf && state.handsfree){
+      var said = hfTranscript.trim();
+      hfTranscript = "";
+      if (said) hfUserSaid(said);
+      else hfListen();   // nichts gehört -> weiter zuhören
+    }
+  };
+}
+
+function startRec(){            // manueller Mikrofon-Knopf
+  if (!recognition) return;
+  micMode = "manual";
+  try {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    recognition.lang = state.lang.tts;
+    recognition.start();
+    recording = true;
+    $("micBtn").classList.add("rec");
+  } catch(e){ /* doppeltes start() ignorieren */ }
+}
+
+function stopRec(){
+  recording = false;
+  $("micBtn").classList.remove("rec");
+  if (recognition){ try { recognition.stop(); } catch(e){} }
+}
+
+function toggleMic(){
+  if (recording) stopRec();
+  else startRec();
+}
+
+// ---------- Freisprech-Modus (Autofahrt) ----------
+function setHfStatus(cls, text){
+  var el = $("hfStatus");
+  if (!el) return;
+  el.className = "hfstatus " + (cls || "");
+  el.textContent = text;
+}
+
+function startHandsfree(){
+  if (!recognition){
+    alert("Spracherkennung wird hier nicht unterstützt. Bitte auf dem Handy Chrome verwenden.");
+    return;
+  }
+  state.handsfree = true;
+  $("hfBanner").style.display = "flex";
+  $("hfBtn").textContent = "🚗 An";
+  hfListen();   // Ellie hat schon eröffnet -> direkt zuhören
+}
+
+function stopHandsfree(){
+  state.handsfree = false;
+  $("hfBanner").style.display = "none";
+  $("hfBtn").textContent = "🚗";
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopRec();
+  setHfStatus("", "🚗 Freisprech-Modus");
+}
+
+function hfListen(){
+  if (!state.handsfree) return;
+  setHfStatus("listen", "🎤 Du bist dran – sprich jetzt");
+  micMode = "hf";
+  hfTranscript = "";
+  try {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    recognition.lang = state.lang.tts;
+    recognition.start();
+    recording = true;
+    $("micBtn").classList.add("rec");
+  } catch(e){
+    setTimeout(function(){ if (state.handsfree) hfListen(); }, 400);
+  }
+}
+
+function hfUserSaid(text){
+  addMsg("user", text);
+  setHfStatus("think", "💭 Ellie denkt nach …");
+  showTyping();
+  callClaude(text).then(function(reply){
+    hideTyping();
+    var play = addMsg("ellie", reply);
+    setHfStatus("speak", "🔊 Ellie spricht …");
+    play(null, function(){
+      if (state.handsfree) setTimeout(hfListen, 300);
+    });
+  }).catch(function(e){
+    hideTyping(); showError("Fehler: " + e.message);
+    if (state.handsfree) setTimeout(hfListen, 1500);
+  });
+}
+
+// ---------- Init ----------
+$("apiKey").value = loadKey();
+loadVoicePref();
+primeVoices();
+renderSetup();
+initMic();
+
+$("voiceSelect").onchange = function(){
+  state.voiceURI = this.value;
+  saveVoicePref();
+};
+$("rateRange").oninput = function(){ state.rate = parseFloat(this.value); };
+$("testVoice").onclick = function(){
+  var probe = { "en": "Hello! This is how I sound. Do you like my voice?",
+                "fr": "Bonjour ! Voici ma voix. Est-ce qu'elle te plaît ?",
+                "es": "¡Hola! Así sueno yo. ¿Te gusta mi voz?",
+                "it": "Ciao! Ecco la mia voce. Ti piace?",
+                "de": "Hallo! So klinge ich. Gefällt dir meine Stimme?" };
+  var key = state.lang.tts.split("-")[0];
+  speak(probe[key] || probe["en"], this);
+};
+
+$("startBtn").onclick = startConversation;
+$("sendBtn").onclick = send;
+$("micBtn").onclick = toggleMic;
+$("hfBtn").onclick = function(){ if (state.handsfree) stopHandsfree(); else startHandsfree(); };
+$("hfStop").onclick = stopHandsfree;
+$("input").addEventListener("input", autosize);
+$("input").addEventListener("keydown", function(e){
+  if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+$("backBtn").onclick = function(){
+  stopHandsfree();
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  $("chatScreen").classList.remove("active");
+  $("setup").classList.add("active");
+  $("backBtn").style.display = "none";
+  $("hfBtn").style.display = "none";
+  $("subtitle").textContent = "Deine Sprachpartnerin";
+};
+</script>
+</body>
+</html>
