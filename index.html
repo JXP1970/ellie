@@ -186,6 +186,13 @@
   </div>
 
   <div class="card">
+    <label class="label">Deutsch-Stimme (für Korrektur & Vokabeln)</label>
+    <select id="deVoiceSelect"></select>
+    <button class="chip" id="testDeVoice" style="margin-top:10px">🔊 Probe</button>
+    <div class="hint">Stimme für die deutschen Teile. Wenn keine gut klingt, in den Android-Einstellungen eine <b>„Google"</b>-Stimme für Deutsch nachinstallieren.</div>
+  </div>
+
+  <div class="card">
     <label class="label">Niveau</label>
     <div class="chips" id="levelChips"></div>
   </div>
@@ -268,6 +275,7 @@ var state = {
   mode: "gespraech",  // "gespraech" | "vokabeln"
   history: [],   // [{role, content}]
   voiceURI: "",  // gewählte Stimme (pro Sprache gemerkt)
+  deVoiceURI: "", // deutsche Stimme für Korrektur & Vokabeln
   rate: 0.95,
   correct: "sanft",
   autoplay: false,
@@ -317,13 +325,14 @@ function renderSetup(){
     function(){return false;},
     function(t){ $("topic").value = t; });
   refreshVoiceList();
+  refreshDeVoiceList();
 }
 
 // ---------- Sprachausgabe ("Hören") ----------
 function primeVoices(){
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = function(){ refreshVoiceList(); };
+  window.speechSynthesis.onvoiceschanged = function(){ refreshVoiceList(); refreshDeVoiceList(); };
 }
 
 // Qualitäts-Bewertung einer Stimme (Google/Natural/Neural zuerst)
@@ -384,6 +393,39 @@ function saveVoicePref(){
   try { localStorage.setItem("ellie_voice_" + state.lang.name, state.voiceURI); } catch(e){}
 }
 
+function loadDeVoicePref(){
+  try { state.deVoiceURI = localStorage.getItem("ellie_de_voice") || ""; }
+  catch(e){ state.deVoiceURI = ""; }
+}
+function saveDeVoicePref(){
+  try { localStorage.setItem("ellie_de_voice", state.deVoiceURI); } catch(e){}
+}
+
+function refreshDeVoiceList(){
+  var sel = $("deVoiceSelect");
+  if (!sel) return;
+  var list = voicesFor("de-DE");
+  sel.innerHTML = "";
+  if (!list.length){
+    var o = document.createElement("option");
+    o.value = ""; o.textContent = "Automatisch (Standardstimme)";
+    sel.appendChild(o);
+    return;
+  }
+  list.forEach(function(v){
+    var o = document.createElement("option");
+    o.value = v.voiceURI;
+    o.textContent = v.name + " (" + v.lang + ")";
+    sel.appendChild(o);
+  });
+  if (state.deVoiceURI && list.some(function(v){ return v.voiceURI === state.deVoiceURI; })){
+    sel.value = state.deVoiceURI;
+  } else {
+    state.deVoiceURI = list[0].voiceURI;
+    sel.value = state.deVoiceURI;
+  }
+}
+
 function pickVoiceFor(langCode, preferredURI){
   var voices = window.speechSynthesis.getVoices();
   if (preferredURI){
@@ -442,7 +484,8 @@ function stripMarks(s){ return s.replace(/[«»]/g, ""); }
 function splitByLang(text, baseLang){
   var parts = [];
   var re = /«([^»]*)»/g, last = 0, m;
-  function pushBase(t){ if (t && t.trim()) parts.push({ text: t, lang: baseLang }); }
+  var basePref = (baseLang.split("-")[0] === "de") ? state.deVoiceURI : "";
+  function pushBase(t){ if (t && t.trim()) parts.push({ text: t, lang: baseLang, preferredURI: basePref }); }
   while ((m = re.exec(text))){
     pushBase(text.slice(last, m.index));
     if (m[1] && m[1].trim()) parts.push({ text: m[1], lang: state.lang.tts, preferredURI: state.voiceURI });
@@ -851,6 +894,7 @@ function hfUserSaid(text){
 // ---------- Init ----------
 $("apiKey").value = loadKey();
 loadVoicePref();
+loadDeVoicePref();
 primeVoices();
 renderSetup();
 initMic();
@@ -858,6 +902,14 @@ initMic();
 $("voiceSelect").onchange = function(){
   state.voiceURI = this.value;
   saveVoicePref();
+};
+$("deVoiceSelect").onchange = function(){
+  state.deVoiceURI = this.value;
+  saveDeVoicePref();
+};
+$("testDeVoice").onclick = function(){
+  speakParts([{ text: "Hallo! So klinge ich auf Deutsch. Gefällt dir diese Stimme?",
+                lang: "de-DE", preferredURI: state.deVoiceURI }], this);
 };
 $("rateRange").oninput = function(){ state.rate = parseFloat(this.value); };
 $("testVoice").onclick = function(){
