@@ -188,8 +188,14 @@
   <div class="card">
     <label class="label">Deutsch-Stimme (für Korrektur & Vokabeln)</label>
     <select id="deVoiceSelect"></select>
-    <button class="chip" id="testDeVoice" style="margin-top:10px">🔊 Probe</button>
-    <div class="hint">Stimme für die deutschen Teile. Wenn keine gut klingt, in den Android-Einstellungen eine <b>„Google"</b>-Stimme für Deutsch nachinstallieren.</div>
+    <div class="row" style="margin-top:10px; align-items:center">
+      <button class="chip" id="testDeVoice" style="flex:0 0 auto">🔊 Probe</button>
+      <div style="flex:1">
+        <label class="label" style="margin:0">Tempo (Deutsch)</label>
+        <input type="range" id="deRateRange" min="0.8" max="1.6" step="0.05" value="1.1" style="width:100%">
+      </div>
+    </div>
+    <div class="hint">Stimme & Tempo für die deutschen Teile. Wenn keine Stimme gut klingt, in den Android-Einstellungen eine <b>„Google"</b>-Stimme für Deutsch nachinstallieren.</div>
   </div>
 
   <div class="card">
@@ -276,6 +282,7 @@ var state = {
   history: [],   // [{role, content}]
   voiceURI: "",  // gewählte Stimme (pro Sprache gemerkt)
   deVoiceURI: "", // deutsche Stimme für Korrektur & Vokabeln
+  deRate: 1.1,    // eigenes Tempo für die deutsche Stimme
   rate: 0.95,
   correct: "sanft",
   autoplay: false,
@@ -463,7 +470,7 @@ function speakParts(parts, btn, onDone){
     u.lang = p.lang;
     var v = pickVoiceFor(p.lang, p.preferredURI);
     if (v) u.voice = v;
-    u.rate = state.rate;
+    u.rate = p.rate || state.rate;
     u.pitch = 1.0;
     u.onend = done;
     u.onerror = done;
@@ -484,8 +491,9 @@ function stripMarks(s){ return s.replace(/[«»]/g, ""); }
 function splitByLang(text, baseLang){
   var parts = [];
   var re = /«([^»]*)»/g, last = 0, m;
-  var basePref = (baseLang.split("-")[0] === "de") ? state.deVoiceURI : "";
-  function pushBase(t){ if (t && t.trim()) parts.push({ text: t, lang: baseLang, preferredURI: basePref }); }
+  var isDe = (baseLang.split("-")[0] === "de");
+  var basePref = isDe ? state.deVoiceURI : "";
+  function pushBase(t){ if (t && t.trim()) parts.push({ text: t, lang: baseLang, preferredURI: basePref, rate: isDe ? state.deRate : 0 }); }
   while ((m = re.exec(text))){
     pushBase(text.slice(last, m.index));
     if (m[1] && m[1].trim()) parts.push({ text: m[1], lang: state.lang.tts, preferredURI: state.voiceURI });
@@ -907,9 +915,10 @@ $("deVoiceSelect").onchange = function(){
   state.deVoiceURI = this.value;
   saveDeVoicePref();
 };
+$("deRateRange").oninput = function(){ state.deRate = parseFloat(this.value); };
 $("testDeVoice").onclick = function(){
-  speakParts([{ text: "Hallo! So klinge ich auf Deutsch. Gefällt dir diese Stimme?",
-                lang: "de-DE", preferredURI: state.deVoiceURI }], this);
+  speakParts([{ text: "Hallo! So klinge ich auf Deutsch. Gefällt dir Stimme und Tempo?",
+                lang: "de-DE", preferredURI: state.deVoiceURI, rate: state.deRate }], this);
 };
 $("rateRange").oninput = function(){ state.rate = parseFloat(this.value); };
 $("testVoice").onclick = function(){
