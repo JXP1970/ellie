@@ -434,7 +434,25 @@ function speak(text, btn){
   speakParts([{ text: text, lang: state.lang.tts, preferredURI: state.voiceURI }], btn);
 }
 
-// macht aus ✏️-Korrekturzeilen vorlesbaren deutschen Text
+// entfernt Sprach-Markierungen «...» für die Textanzeige
+function stripMarks(s){ return s.replace(/[«»]/g, ""); }
+
+// zerlegt Text in Sprech-Teile: Standard = baseLang (z. B. Deutsch),
+// «...» = Übungssprache (mit Ellies gewählter Stimme)
+function splitByLang(text, baseLang){
+  var parts = [];
+  var re = /«([^»]*)»/g, last = 0, m;
+  function pushBase(t){ if (t && t.trim()) parts.push({ text: t, lang: baseLang }); }
+  while ((m = re.exec(text))){
+    pushBase(text.slice(last, m.index));
+    if (m[1] && m[1].trim()) parts.push({ text: m[1], lang: state.lang.tts, preferredURI: state.voiceURI });
+    last = re.lastIndex;
+  }
+  pushBase(text.slice(last));
+  return parts;
+}
+
+// macht aus ✏️-Korrekturzeilen vorlesbaren deutschen Text (engl. Wörter bleiben in «...»)
 function correctionsToSpeech(corrections){
   if (!corrections || !corrections.length) return "";
   var txt = corrections.map(function(c){
@@ -470,12 +488,12 @@ function addMsg(role, text){
       box.className = "corr";
       parts.corrections.forEach(function(c){
         var line = document.createElement("div");
-        line.textContent = "✏️ " + c;
+        line.textContent = "✏️ " + stripMarks(c);
         box.appendChild(line);
       });
       content.appendChild(box);
     }
-    content.appendChild(document.createTextNode(speech));
+    content.appendChild(document.createTextNode(stripMarks(speech)));
     div.appendChild(content);
 
     var b = document.createElement("button");
@@ -483,10 +501,12 @@ function addMsg(role, text){
     b.innerHTML = "🔊 Hören";
     var play = function(btn, onDone){
       var seq = [];
+      // Korrektur: Deutsch mit deutscher Stimme, markierte engl. Wörter mit Ellies Stimme
       var corrSpeech = correctionsToSpeech(parts.corrections);
-      // Korrektur mit Ellies eigener Stimme (statt separater deutscher Stimme)
-      if (corrSpeech) seq.push({ text: corrSpeech, lang: state.lang.tts, preferredURI: state.voiceURI });
-      seq.push({ text: speech, lang: state.lang.tts, preferredURI: state.voiceURI });
+      if (corrSpeech) seq = seq.concat(splitByLang(corrSpeech, "de-DE"));
+      // Vokabel-Modus: Deutsch/Englisch getrennt vorlesen; Gespräch: alles Übungssprache
+      if (state.mode === "vokabeln") seq = seq.concat(splitByLang(speech, "de-DE"));
+      else seq.push({ text: speech, lang: state.lang.tts, preferredURI: state.voiceURI });
       speakParts(seq, btn, onDone);
     };
     b.onclick = function(){ play(b); };
@@ -536,6 +556,10 @@ function systemPrompt(){
       "3. Sage kurz, ob die Antwort richtig ist. Wenn falsch oder keine Antwort: nenne die richtige Vokabel. " +
       "Gib IMMER einen kurzen Beispielsatz in " + state.lang.name + " mit dem Wort.\n" +
       "4. Mache dann direkt mit dem nächsten Wort weiter.\n\n" +
+      "WICHTIG FÜR DIE AUSSPRACHE: Setze JEDES Wort und jeden Satz, der in " + state.lang.name + " ist, " +
+      "in französische Anführungszeichen «...» (z. B. «house», «I live in a house.»). " +
+      "Deine deutschen Anweisungen und das abgefragte deutsche Wort bleiben OHNE «...». " +
+      "Beispiel: 'Wie heißt „Haus\" auf " + state.lang.name + "?' … 'Richtig, «house». Beispiel: «This is my house.»'\n\n" +
       "Wähle Wörter passend zu Thema und Niveau, wiederhole gelegentlich schwierige Wörter. " +
       "Halte jede Nachricht kurz. Verwende keine Emojis und keine Sternchen-Formatierung.";
   }
@@ -555,7 +579,9 @@ function systemPrompt(){
       : "Korrigiere nur die wichtigsten Fehler (Grammatik, Wortwahl), die das Verständnis stören. Übergehe Kleinigkeiten.";
     p += "KORREKTUR: " + grad + "\n" +
       "WENN der Nutzer einen Fehler gemacht hat, beginne deine Antwort mit GENAU EINER Zeile in diesem Format:\n" +
-      "✏️ <falsch> → <richtig> (kurze Erklärung auf Deutsch)\n" +
+      "✏️ «<falsch>» → «<richtig>» (kurze Erklärung auf Deutsch)\n" +
+      "Setze dabei die " + state.lang.name + "-Wörter in französische Anführungszeichen «...», " +
+      "die deutsche Erklärung bleibt ohne «...». Beispiel: ✏️ «I has» → «I have» (nach „I\" immer „have\").\n" +
       "Bei mehreren Fehlern: mehrere solche Zeilen, jede mit ✏️ am Anfang.\n" +
       "Danach eine LEERZEILE und dann deine normale Gesprächsantwort in " + state.lang.name + ".\n" +
       "WENN alles korrekt war, KEINE ✏️-Zeile – dann nur die Gesprächsantwort.\n";
