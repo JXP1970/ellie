@@ -479,6 +479,10 @@ function addMsg(role, text){
     div.appendChild(document.createElement("br"));
     div.appendChild(b);
 
+    // Nachricht in den Chat einfügen (muss vor dem return passieren!)
+    $("chat").appendChild(div);
+    $("chat").scrollTop = $("chat").scrollHeight;
+
     // im Freisprech-Modus steuert die Schleife das Abspielen selbst
     if (state.autoplay && !state.handsfree) setTimeout(function(){ play(b); }, 250);
 
