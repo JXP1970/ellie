@@ -167,6 +167,12 @@
   </div>
 
   <div class="card">
+    <label class="label">Modus</label>
+    <div class="chips" id="modeChips"></div>
+    <div class="hint">„Vokabeln": Ellie nennt ein deutsches Wort, du sagst die englische Übersetzung – sie korrigiert und macht weiter.</div>
+  </div>
+
+  <div class="card">
     <label class="label">Stimme</label>
     <select id="voiceSelect"></select>
     <div class="row" style="margin-top:10px; align-items:center">
@@ -250,11 +256,16 @@ var CORRECTS = [
 ];
 var AUTO = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
 var DRIVE = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
+var MODES = [
+  { id: "gespraech", label: "Gespräch" },
+  { id: "vokabeln",  label: "Vokabeln" }
+];
 
 // ---------- Zustand ----------
 var state = {
   lang: LANGS[0],
   level: LEVELS[0],
+  mode: "gespraech",  // "gespraech" | "vokabeln"
   history: [],   // [{role, content}]
   voiceURI: "",  // gewählte Stimme (pro Sprache gemerkt)
   rate: 0.95,
@@ -287,6 +298,9 @@ function renderSetup(){
   buildChips($("langChips"), LANGS, function(l){return l.name;},
     function(l){return l===state.lang;},
     function(l){ state.lang=l; loadVoicePref(); renderSetup(); });
+  buildChips($("modeChips"), MODES, function(m){return m.label;},
+    function(m){return m.id===state.mode;},
+    function(m){ state.mode=m.id; renderSetup(); });
   buildChips($("levelChips"), LEVELS, function(l){return l;},
     function(l){return l===state.level;},
     function(l){ state.level=l; renderSetup(); });
@@ -511,6 +525,21 @@ function showError(msg){
 
 // ---------- Anthropic API ----------
 function systemPrompt(){
+  if (state.mode === "vokabeln"){
+    return "Du bist Ellie, eine motivierende, geduldige Vokabeltrainerin. " +
+      "Der Nutzer (Muttersprache Deutsch) lernt Vokabeln in der Sprache: " + state.lang.name + ". " +
+      "Niveau: " + state.level + ". Thema: nutze das vom Nutzer genannte Thema, sonst gemischter Alltagswortschatz.\n\n" +
+      "ABLAUF – immer nur EIN Wort pro Nachricht:\n" +
+      "1. Nenne EIN deutsches Wort und frage nach der Übersetzung in " + state.lang.name + ". " +
+      "Beispiel: 'Wie heißt „Haus\" auf " + state.lang.name + "?'\n" +
+      "2. Warte auf die Antwort des Nutzers.\n" +
+      "3. Sage kurz, ob die Antwort richtig ist. Wenn falsch oder keine Antwort: nenne die richtige Vokabel. " +
+      "Gib IMMER einen kurzen Beispielsatz in " + state.lang.name + " mit dem Wort.\n" +
+      "4. Mache dann direkt mit dem nächsten Wort weiter.\n\n" +
+      "Wähle Wörter passend zu Thema und Niveau, wiederhole gelegentlich schwierige Wörter. " +
+      "Halte jede Nachricht kurz. Verwende keine Emojis und keine Sternchen-Formatierung.";
+  }
+
   var p = "Du bist Ellie, eine warmherzige, geduldige Sprachpartnerin. " +
     "Der Nutzer (Muttersprache Deutsch) übt die Sprache: " + state.lang.name + ". " +
     "Sein Niveau: " + state.level + ". " +
@@ -583,7 +612,8 @@ function startConversation(){
   var topic = $("topic").value.trim() || "Smalltalk";
   state.history = [];
   $("chat").innerHTML = "";
-  $("subtitle").textContent = state.lang.name + " · " + state.level + " · " + topic;
+  var modeLabel = (state.mode === "vokabeln") ? "Vokabeln" : "Gespräch";
+  $("subtitle").textContent = modeLabel + " · " + state.lang.name + " · " + state.level + " · " + topic;
 
   $("setup").classList.remove("active");
   $("chatScreen").classList.add("active");
@@ -598,9 +628,16 @@ function startConversation(){
     setHfStatus("think", "💭 Ellie denkt nach …");
   }
 
-  // Ellie eröffnet das Gespräch
-  var opener = "Beginne das Gespräch zum Thema \"" + topic + "\". " +
-               "Begrüße mich kurz und stelle eine erste, einfache Frage.";
+  // Ellie eröffnet – je nach Modus
+  var opener;
+  if (state.mode === "vokabeln"){
+    opener = "Starte eine Vokabel-Übung zum Thema \"" + topic + "\". " +
+             "Begrüße mich ganz kurz und nenne dann gleich das erste deutsche Wort, " +
+             "dessen Übersetzung ich sagen soll.";
+  } else {
+    opener = "Beginne das Gespräch zum Thema \"" + topic + "\". " +
+             "Begrüße mich kurz und stelle eine erste, einfache Frage.";
+  }
   showTyping();
   setBusy(true);
   callClaude(opener).then(function(reply){
