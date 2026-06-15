@@ -470,7 +470,8 @@ function addMsg(role, text){
     var play = function(btn, onDone){
       var seq = [];
       var corrSpeech = correctionsToSpeech(parts.corrections);
-      if (corrSpeech) seq.push({ text: corrSpeech, lang: "de-DE" });
+      // Korrektur mit Ellies eigener Stimme (statt separater deutscher Stimme)
+      if (corrSpeech) seq.push({ text: corrSpeech, lang: state.lang.tts, preferredURI: state.voiceURI });
       seq.push({ text: speech, lang: state.lang.tts, preferredURI: state.voiceURI });
       speakParts(seq, btn, onDone);
     };
