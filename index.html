@@ -196,12 +196,6 @@
     <div class="hint">Wenn an, spricht Ellie jede Antwort (inkl. Korrektur) sofort von selbst.</div>
   </div>
 
-  <div class="card">
-    <label class="label">Erst hören, dann lesen</label>
-    <div class="chips" id="listenFirstChips"></div>
-    <div class="hint">Wenn an, spricht Ellie zuerst – der Text erscheint erst danach (oder per „👁 Text zeigen"). Gut fürs Hörverstehen.</div>
-  </div>
-
   <div class="card" style="border:1px solid var(--accent)">
     <label class="label">🚗 Freisprech-Modus (Autofahrt)</label>
     <div class="chips" id="driveChips"></div>
@@ -256,7 +250,6 @@ var CORRECTS = [
 ];
 var AUTO = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
 var DRIVE = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
-var LISTENFIRST = [ { id: true, label: "An" }, { id: false, label: "Aus" } ];
 
 // ---------- Zustand ----------
 var state = {
@@ -267,7 +260,6 @@ var state = {
   rate: 0.95,
   correct: "sanft",
   autoplay: false,
-  listenFirst: false, // erst sprechen, Text danach
   drive: false,      // Freisprech als Voreinstellung gewählt
   handsfree: false   // Freisprech-Schleife läuft gerade
 };
@@ -304,9 +296,6 @@ function renderSetup(){
   buildChips($("autoChips"), AUTO, function(a){return a.label;},
     function(a){return a.id===state.autoplay;},
     function(a){ state.autoplay=a.id; renderSetup(); });
-  buildChips($("listenFirstChips"), LISTENFIRST, function(a){return a.label;},
-    function(a){return a.id===state.listenFirst;},
-    function(a){ state.listenFirst=a.id; renderSetup(); });
   buildChips($("driveChips"), DRIVE, function(a){return a.label;},
     function(a){return a.id===state.drive;},
     function(a){ state.drive=a.id; renderSetup(); });
@@ -475,25 +464,6 @@ function addMsg(role, text){
     content.appendChild(document.createTextNode(speech));
     div.appendChild(content);
 
-    // "Erst hören, dann lesen": Text zunächst verbergen
-    var revealed = true;
-    var revealBtn = null;
-    if (state.listenFirst){
-      content.style.display = "none";
-      revealed = false;
-      revealBtn = document.createElement("button");
-      revealBtn.className = "listen";
-      revealBtn.innerHTML = "👁 Text zeigen";
-      revealBtn.onclick = function(){ reveal(); };
-    }
-    function reveal(){
-      if (revealed) return;
-      revealed = true;
-      content.style.display = "";
-      if (revealBtn) revealBtn.style.display = "none";
-      $("chat").scrollTop = $("chat").scrollHeight;
-    }
-
     var b = document.createElement("button");
     b.className = "listen";
     b.innerHTML = "🔊 Hören";
@@ -502,12 +472,11 @@ function addMsg(role, text){
       var corrSpeech = correctionsToSpeech(parts.corrections);
       if (corrSpeech) seq.push({ text: corrSpeech, lang: "de-DE" });
       seq.push({ text: speech, lang: state.lang.tts, preferredURI: state.voiceURI });
-      speakParts(seq, btn, function(){ reveal(); if (onDone) onDone(); });
+      speakParts(seq, btn, onDone);
     };
     b.onclick = function(){ play(b); };
 
     div.appendChild(document.createElement("br"));
-    if (revealBtn) div.appendChild(revealBtn);
     div.appendChild(b);
 
     // im Freisprech-Modus steuert die Schleife das Abspielen selbst
