@@ -702,6 +702,7 @@ function startConversation(){
     state.handsfree = true;
     $("hfBanner").style.display = "flex";
     $("hfBtn").textContent = "🚗 An";
+    requestWakeLock();   // Bildschirm anlassen
     setHfStatus("think", "💭 Ellie denkt nach …");
   }
 
@@ -838,6 +839,26 @@ function toggleMic(){
   else startRec();
 }
 
+// ---------- Bildschirm-Wachsperre (damit das Handy unterwegs nicht abschaltet) ----------
+var wakeLock = null;
+function requestWakeLock(){
+  try {
+    if ("wakeLock" in navigator){
+      navigator.wakeLock.request("screen").then(function(wl){
+        wakeLock = wl;
+        wakeLock.addEventListener("release", function(){ wakeLock = null; });
+      }).catch(function(){});
+    }
+  } catch(e){}
+}
+function releaseWakeLock(){
+  try { if (wakeLock){ wakeLock.release(); wakeLock = null; } } catch(e){}
+}
+// Android gibt die Sperre frei, wenn die Seite kurz in den Hintergrund geht -> neu anfordern
+document.addEventListener("visibilitychange", function(){
+  if (document.visibilityState === "visible" && state.handsfree) requestWakeLock();
+});
+
 // ---------- Freisprech-Modus (Autofahrt) ----------
 function setHfStatus(cls, text){
   var el = $("hfStatus");
@@ -854,6 +875,7 @@ function startHandsfree(){
   state.handsfree = true;
   $("hfBanner").style.display = "flex";
   $("hfBtn").textContent = "🚗 An";
+  requestWakeLock();   // Bildschirm anlassen
   hfListen();   // Ellie hat schon eröffnet -> direkt zuhören
 }
 
@@ -863,6 +885,7 @@ function stopHandsfree(){
   $("hfBtn").textContent = "🚗";
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   stopRec();
+  releaseWakeLock();   // Bildschirm wieder freigeben
   setHfStatus("", "🚗 Freisprech-Modus");
 }
 
