@@ -524,6 +524,17 @@ function splitCorrection(text){
   return { corrections: corr, speech: rest.join("\n").trim() };
 }
 
+// schiebt die zuletzt eingefügte Nachricht mit ihrem Anfang an den oberen Rand
+// des Chatfensters – so ist die aktuelle Frage/Antwort beim Fahren immer von
+// Anfang an lesbar (statt nur das Ende einer langen Nachricht zu sehen).
+function scrollToCurrent(){
+  var chat = $("chat");
+  var last = chat.lastElementChild;
+  if (!last) return;
+  var delta = last.getBoundingClientRect().top - chat.getBoundingClientRect().top;
+  chat.scrollTop = chat.scrollTop + delta - 8;   // 8px Luft nach oben
+}
+
 function addMsg(role, text){
   var div = document.createElement("div");
   div.className = "msg " + role;
@@ -567,7 +578,7 @@ function addMsg(role, text){
 
     // Nachricht in den Chat einfügen (muss vor dem return passieren!)
     $("chat").appendChild(div);
-    $("chat").scrollTop = $("chat").scrollHeight;
+    scrollToCurrent();
 
     // im Freisprech-Modus steuert die Schleife das Abspielen selbst
     if (state.autoplay && !state.handsfree) setTimeout(function(){ play(b); }, 250);
@@ -578,20 +589,20 @@ function addMsg(role, text){
   }
 
   $("chat").appendChild(div);
-  $("chat").scrollTop = $("chat").scrollHeight;
+  scrollToCurrent();
 }
 function showTyping(){
   var d = document.createElement("div");
   d.className = "typing"; d.id = "typing"; d.textContent = "Ellie schreibt …";
   $("chat").appendChild(d);
-  $("chat").scrollTop = $("chat").scrollHeight;
+  scrollToCurrent();
 }
 function hideTyping(){ var t=$("typing"); if(t) t.remove(); }
 function showError(msg){
   var d = document.createElement("div");
   d.className = "err"; d.textContent = msg;
   $("chat").appendChild(d);
-  $("chat").scrollTop = $("chat").scrollHeight;
+  scrollToCurrent();
 }
 
 // ---------- Anthropic API ----------
